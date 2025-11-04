@@ -18,13 +18,12 @@ This is implementation of MCP Client Server working with Gemini LLM
     ```bash
     python main.py
     ```
-
-6. Send prompt with POST request
+6. Install Filesystem MCP:
     ```bash
-    curl -X POST http://localhost:5000/chat \
-     -H "Content-Type: application/json" \
-     -d '{"prompt":"What is the status of my local repo here ./ ?\nuse tools provided by MCP Git server to answer the question."}'
+    npm ci
     ```
+7. Test it by sending prompt with POST request. \
+    See instructions in [docs/prompt-testing.md](./docs/prompt-testing.md)
 
 ## References
 - [Google Gen AI SDK - MCP support](https://github.com/googleapis/python-genai/tree/main?tab=readme-ov-file#model-context-protocol-mcp-support-experimental)
