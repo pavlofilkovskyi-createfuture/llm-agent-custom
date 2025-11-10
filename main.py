@@ -1,18 +1,18 @@
 import os
 import sys
+import asyncio
+
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from google.genai import Client
-from google import genai
-from flask import Flask, request, jsonify
+from google.genai.types import GenerateContentConfig
+from agent.gemini import GeminiAgent
 
 from dotenv import load_dotenv
 load_dotenv()  # Load from .env file
 
-
-app = Flask(__name__)
-
 # https://github.com/modelcontextprotocol/servers/tree/main/src/git
+# run as standalone module: python -m mcp_server_git
 git_server_params = StdioServerParameters(
     command = sys.executable,
     args = ["-m", "mcp_server_git"],  # MCP Server
@@ -22,58 +22,40 @@ git_server_params = StdioServerParameters(
 # https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem
 filesystem_server_params = StdioServerParameters(
     command = "npx",
-    args = ["-y", "@modelcontextprotocol/server-filesystem", "~/Projects"],
+    args = ["-y", "@modelcontextprotocol/server-filesystem", "/Users/pfilkovskyi/Projects"],
     env = None,
 )
 
-client = Client(api_key=os.environ.get("GEMINI_API_KEY"))
-
-async def send_request(prompt:str):
+async def main() -> None:
+    
+    # prompt = "Hello!"
+    
+    prompt = """
+    You are a developer with access to MCP tools for Git and Filesystem.
+    Using tools available to you perform the following task:
+    1. navigate to the repository at /Users/pfilkovskyi/Projects/test-repo
+    2. find existing file in it named `hello.txt` with the content 'Hello!'
+    3. Modify the content of `hello.txt` to 'Hello, World!'
+       if the file does not exist, create it with the content 'Hello, World!'
+    4. commit changes with message 'update hello.txt'
+    """
+    
     async with \
         stdio_client(git_server_params) as (git_read, git_write), \
         stdio_client(filesystem_server_params) as (fs_read, fs_write):
         
         async with \
-            ClientSession(git_read, git_write) as git_session, \
-            ClientSession(fs_read, fs_write) as fs_session:
+            ClientSession(git_read, git_write) as git_mcp_client, \
+            ClientSession(fs_read, fs_write) as filesystem_mcp_client:
             
-            await git_session.initialize()
-            await fs_session.initialize()
+            await git_mcp_client.initialize()
+            await filesystem_mcp_client.initialize()
 
-            response = await client.aio.models.generate_content(
-                model = "gemini-2.5-flash",
-                contents = prompt,
-                config = genai.types.GenerateContentConfig(
-                    temperature = 0,
-                    tools = [git_session, fs_session],
-                ),
-            )
+            agent: GeminiAgent = GeminiAgent(tools=[git_mcp_client, filesystem_mcp_client])
+            response =  await agent(prompt)
             print(response.text)
-            client.close()
-            return response.text
-
-@app.route('/chat', methods=['POST'])
-async def chat():
-    data = request.json
-    prompt = data.get('prompt', '')
-    
-    if not prompt:
-        return jsonify({"error": "prompt is required"}), 400
-    
-    response = await send_request(prompt)
-    return jsonify({"response": response})
-
-@app.route('/health', methods=['GET'])
-def health():
-    """Health check endpoint"""
-    return jsonify({
-        "status": "OK"
-    })
+            agent.close()
     
 
-if __name__ == "__main__":
-    print("Starting Chat Server on http://localhost:5000")
-    print("Available endpoints:")
-    print("  POST /chat - Send a message")
-    print("  GET /health - Check server status")
-    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+if __name__ == "__main__":    
+    asyncio.run(main())

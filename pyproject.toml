@@ -1,0 +1,14 @@
+[project]
+name = "llm-agent-custom"
+version = "0.1.0"
+description = "Agent implementation with custom LLM Provider"
+readme = "README.md"
+requires-python = "==3.14.*"
+dependencies = [
+    "mcp[cli]==1.23.*",
+    "pydantic==2.12.*",
+    "loguru>=0.7.0",
+    "python-dotenv>=1.2.0",
+    "mcp_server_git==2025.12.*",
+    "google-genai==1.57.*",
+]

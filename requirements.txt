@@ -1,9 +1,0 @@
-flask[async]
-python-dotenv
-
-# MCP servers
-mcp
-mcp_server_git
-
-# LLM providers:
-google-genai
