@@ -1,34 +1,12 @@
-import os
-import sys
 import asyncio
-
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-from google.genai import Client
-from google.genai.types import GenerateContentConfig
 from agent.gemini import GeminiAgent
+from mcp_client import GitMCPClient, FilesystemMCPClient
 
 from dotenv import load_dotenv
 load_dotenv()  # Load from .env file
 
-# https://github.com/modelcontextprotocol/servers/tree/main/src/git
-# run as standalone module: python -m mcp_server_git
-git_server_params = StdioServerParameters(
-    command = sys.executable,
-    args = ["-m", "mcp_server_git"],  # MCP Server
-    env = None,  # Optional environment variables
-)
-
-# https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem
-filesystem_server_params = StdioServerParameters(
-    command = "npx",
-    args = ["-y", "@modelcontextprotocol/server-filesystem", "/Users/pfilkovskyi/Projects"],
-    env = None,
-)
 
 async def main() -> None:
-    
-    # prompt = "Hello!"
     
     prompt = """
     You are a developer with access to MCP tools for Git and Filesystem.
@@ -41,20 +19,12 @@ async def main() -> None:
     """
     
     async with \
-        stdio_client(git_server_params) as (git_read, git_write), \
-        stdio_client(filesystem_server_params) as (fs_read, fs_write):
-        
-        async with \
-            ClientSession(git_read, git_write) as git_mcp_client, \
-            ClientSession(fs_read, fs_write) as filesystem_mcp_client:
-            
-            await git_mcp_client.initialize()
-            await filesystem_mcp_client.initialize()
+        GitMCPClient() as git_mcp_client, \
+        FilesystemMCPClient() as filesystem_mcp_client:
 
-            agent: GeminiAgent = GeminiAgent(tools=[git_mcp_client, filesystem_mcp_client])
-            response =  await agent(prompt)
-            print(response.text)
-            agent.close()
+            with GeminiAgent(tools=[git_mcp_client, filesystem_mcp_client]) as agent:
+                response =  await agent(prompt)
+                print(response.text)
     
 
 if __name__ == "__main__":    
