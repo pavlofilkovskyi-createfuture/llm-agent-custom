@@ -1,4 +1,5 @@
 import os
+from contextlib import AbstractContextManager
 from google.genai import Client
 from google.genai.types import (
     GenerateContentConfig, 
@@ -6,7 +7,7 @@ from google.genai.types import (
     ToolListUnion
 )
 
-class GeminiAgent:
+class GeminiAgent(AbstractContextManager):
     
     def __init__(self, name: str = "GeminiAgent", model:str = "gemini-2.5-flash", tools: ToolListUnion | None = None):
         self.name = name
@@ -14,6 +15,9 @@ class GeminiAgent:
         self.tools = tools
         
         gemini_api_key = os.environ.get("GEMINI_API_KEY")
+        if gemini_api_key is None:
+            raise Exception("GEMINI_API_KEY environment variable is not set.")
+        
         self.llm_client = Client(api_key=gemini_api_key)
         
     async def __call__(self, prompt: str) -> GenerateContentResponse:
@@ -26,5 +30,5 @@ class GeminiAgent:
                 ),
             )
     
-    def close(self):
+    def __exit__(self, exc_type, exc_value, traceback):
         self.llm_client.close()
